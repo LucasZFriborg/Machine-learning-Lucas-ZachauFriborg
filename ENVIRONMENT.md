@@ -10,13 +10,12 @@ Miljön ska alltid gå att återskapa från grunden.
 
 ---
 
-## Nuvarande läge (första fasen)
+## Nuvarande läge
 
-- Python-version: 3.13 (tillfällig)
-- Huvudbibliotek: scikit-learn, numpy, pandas
+- Python-version: 3.13
+- Huvudbibliotek: scikit-learn, numpy, pandas, PyTorch
+- PyTorch: installerat med CUDA-stöd (fungerar i WSL)
 - Snapshot av beroenden: `requirements.txt`
-
-`requirements.txt` MÅSTE alltid spegla den faktiska miljön.
 
 ---
 
@@ -30,10 +29,14 @@ Detta är obligatoriskt för att miljön ska kunna återskapas senare.
 
 ---
 
-## När PyTorch börjar användas (VIKTIG TRANSITION)
+## Planerad Python-transition (VIKTIGT)
 
-När projektet börjar använda PyTorch MÅSTE Python-versionen bytas
-till **Python 3.11** av kompatibilitetsskäl.
+Projektet använder för närvarande **Python 3.13**.  
+Vid behov (t.ex. för maximal kompatibilitet eller grupparbete)  
+ska Python-versionen bytas till **Python 3.11**.
+
+⚠️ Python-version kan INTE bytas i ett befintligt virtual environment.  
+Miljön måste då återskapas.
 
 Följ stegen NEDAN EXAKT, från projektets rotkatalog:
 
@@ -54,7 +57,7 @@ Följ stegen NEDAN EXAKT, från projektets rotkatalog:
 
     uv pip install -r requirements.txt
 
-### 5. Installera PyTorch
+### 5. (Valfritt) Installera PyTorch igen om det behövs
 
     uv pip install torch torchvision torchaudio
 
