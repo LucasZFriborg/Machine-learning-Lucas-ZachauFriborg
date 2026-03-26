@@ -1,0 +1,10 @@
+## Report
+During the data exploration, it became clear that the genres provided in the dataset are relatively limited and coarse. There are only twenty different genres, and many movies share the same combinations of these. This makes it difficult to distinguish between movies using genres alone, therefore limits the quality of recommendations if only this information is used.
+
+On the other hand, the tags dataset contains much richer and more descriptive information. The tags are used-generated and include a wide variety of words and phrases such as 'dark', 'sci-fi', and 'psychological', which provides deeper insight into the content and themes of each movie, beyond what genres captures by itself. However, the number of tags per movie varies significantly, meaning that the information is unevenly distributed across the dataset.
+
+Based on these observations, a content-based filtering approach was chosen. Instead of relying on e.g. ratings, this mtehod uses the features of the movies themselves to determine similarity. Since both genres and tags describe the content of each movie, they are well suited as input features for a recommendation system. By combining these, each movie can be represented in a more expressive way.
+
+Because tags are textual data, a method which handles unstructured text was required. Therefore, I chose TF-IDF vectorization. TF-IDF transforms the combined text of genres and tags into numerical feature vectors, while emphasizing words that are more distinctive for each movie.
+
+To measure similarity between movies, cosine similarity was applied to the TF-IDF vectors. This makes it possible to identify movies that are close to each other in the feature space, meaning they share similar descriptive characteristics. Based on these similarity scores, the system recommends the top five most similar movies to a given input.
