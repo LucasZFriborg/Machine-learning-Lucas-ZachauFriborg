@@ -2,96 +2,119 @@ import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-# 1. Läs in data
 movies = pd.read_csv('Data/ml-latest/movies.csv')
 tags = pd.read_csv('Data/ml-latest/tags.csv')
 
-# 2. Gör om genres till listor
-movies['genres'] = movies['genres'].apply(lambda x: x.split('|'))
+# splitting genres string into a list (e.g "Action|Drama" -> ["Action", "Drama"])
+movies['genres'] = movies['genres'].str.split('|')
 
-# 3. Filtrera bort filmer utan genres
-movies = movies[movies['genres'].apply(lambda x: '(no genres listed)' not in x)]
+# function to filter out movies with valid genres
+def has_genres(genre_list):
+    return '(no genres listed)' not in genre_list
 
-# 4. Slå ihop tags per film
-tags_grouped = tags.groupby('movieId')['tag'].apply(lambda x: ' '.join(x.dropna()))
+# keeping only movies that have at least one genre
+movies = movies[movies['genres'].apply(has_genres)]
 
-# 5. Merge movies + tags
+# removing rows where tag is missing (NaN)
+tags = tags.dropna(subset=['tag'])
+
+# grouping tags by movieId and concatenate them into a single string
+# (e.g ["dark", "mafia"] -> "dark mafia")
+tags_grouped = tags.groupby('movieId')['tag'].apply(' '.join)
+
+# merging movies with grouped tags (left join keeps all movies)
 movies = movies.merge(tags_grouped, on='movieId', how='left')
 
-# 6. Fyll NaN (filmer utan tags)
+# replacing missing tags with empty strings
 movies['tag'] = movies['tag'].fillna('')
 
-# 7. Gör genres till text
-movies['genres_text'] = movies['genres'].apply(lambda x: ' '.join(x))
+# converting genres list into a space-separated string
+movies['genres_text'] = movies['genres'].apply(lambda genre_list: ' '.join(genre_list))
 
-# 8. Kombinera genres + tags
+# combining genres and tags into one text feature
+# this will be used as input for TF-IDF
 movies['combined'] = movies['genres_text'] + ' ' + movies['tag']
 
-# 9. TF-IDF istället för one-hot
+# initializing TF-IDF vectorizer (removes common English stop words)
 tfidf = TfidfVectorizer(stop_words='english')
+
+# transforming text data into TF-IDF feature matrix
 tfidf_matrix = tfidf.fit_transform(movies['combined'])
 
-
-# 10. Rekommendationsfunktion (oförändrad logik)
 def recommend(title):
+    # converting input to lowercase for case-insensitive matching
     title_lower = title.lower()
 
-    # Försök hitta filmer som börjar med titeln
-    starts_with = movies[movies['title'].str.lower().str.startswith(title_lower)]
+    # first try to find titles that start with the input (more precise match)
+    starts_with_matches = movies[movies['title'].str.lower().str.startswith(title_lower)]
 
-    if len(starts_with) > 0:
-        matches = starts_with.copy()
+    if len(starts_with_matches) > 0:
+        matches = starts_with_matches.copy()
     else:
-        matches = movies[movies['title'].str.contains(title, case=False, na=False)].copy()
+        # if no startswith matches, fall back to broader search (contains)
+        contains_matches = movies[movies['title'].str.contains(title, case=False, na=False)]
+        matches = contains_matches.copy()
 
+    # if no matches found, exit
     if len(matches) == 0:
-        print("\n❌ Movie not found!")
+        print("\nMovie not found!")
         return
 
-    print("\n🎬 Did you mean one of these movies?\n")
+    print("\nDid you mean?\n")
 
+    # showing up to 5 possible matches
     options = matches['title'].head(5).tolist()
 
-    for i, movie in enumerate(options, 1):
-        print(f"{i}: {movie}")
+    for i, movie_name in enumerate(options, 1):
+        print(f"{i}: {movie_name}")
 
     max_index = len(options)
     choice = input(f"\nChoose a movie (1-{max_index}, or press Enter to Exit): ").strip()
 
+    # allowing user to exit without making a choice
     if choice == "":
         return
 
     try:
         choice = int(choice)
 
+        # validating user input
         if choice < 1 or choice > max_index:
-            print("\n❌ Invalid choice!")
+            print("\nInvalid choice!")
             return
 
         selected_title = options[choice - 1]
 
     except:
-        print("\n❌ Invalid input!")
+        # handle non-integer input
+        print("\nInvalid input!")
         return
 
-    # Hitta index för vald film
-    idx = movies[movies['title'] == selected_title].index[0]
+    # getting index of selected movie
+    selected_movie_index = movies[movies['title'] == selected_title].index[0]
 
-    # 🔥 Här är enda viktiga ändringen
-    similarity = cosine_similarity(tfidf_matrix[idx:idx+1], tfidf_matrix)
+    # computing cosine similarity between selected movie and all others
+    similarity_scores = cosine_similarity(
+        tfidf_matrix[selected_movie_index:selected_movie_index + 1],
+        tfidf_matrix
+    )
 
-    sim_scores = list(enumerate(similarity[0]))
-    sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
+    # pairing each movie with its similarity score
+    similarity_list = list(enumerate(similarity_scores[0]))
+    
+    # sorting movies by similarity (highest first)
+    similarity_list = sorted(similarity_list, key=lambda x: x[1], reverse=True)
 
-    top_5 = sim_scores[1:6]
+    # selecting top 5 similar movies (skip the first one = itself)
+    top_5 = similarity_list[1:6]
 
-    print(f"\n🎯 Top 5 similar movies to '{selected_title}':\n")
+    print(f"\nTop 5 similar movies to '{selected_title}':\n")
 
-    for rank, (i, score) in enumerate(top_5, 1):
-        print(f"{rank}. {movies.iloc[i]['title']}")
+    # printing recommendations
+    for rank, (movie_index, score) in enumerate(top_5, 1):
+        movie_title = movies.iloc[movie_index]['title']
+        print(f"{rank}. {movie_title}")
 
-
-# 11. Kör programmet
 if __name__ == "__main__":
-    movie = input("Enter movie title: ")
-    recommend(movie)
+    user_input = input("Enter movie title: ")
+    recommend(user_input)
